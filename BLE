@@ -1,0 +1,63 @@
+#include <NimBLEDevice.h>
+#include <WiFi.h>
+
+
+const int ledPin = 25;
+
+String message = "";
+char incomingChar;
+
+// Timer: auxiliary variables
+unsigned long previousMillis = 0;    // Stores last time temperature was published
+const long interval = 10000;         // interval at which to publish sensor readings
+// Define your Bluetooth service and characteristic UUIDs
+#define SERVICE_UUID       "c4e07cf2-aaf0-4ad8-a447-1e373bef8e1f"  // esp service UUID
+#define CHARACTERISTIC_UUID "8b76bafd-e5a2-4432-a09e-56471d3032df" // esp characteristic UUID
+
+NimBLECharacteristic *pCharacteristic;
+
+void setup() {
+  pinMode(ledPin, OUTPUT);
+  Serial.begin(9600);
+
+  // Initialize NimBLE
+  NimBLEDevice::init("ESP32_NimBLE");
+  NimBLEServer *pServer = NimBLEDevice::createServer();
+
+  // Create a service
+  NimBLEService *pService = pServer->createService(SERVICE_UUID);
+
+  // Creat characteristic
+  pCharacteristic = pService->createCharacteristic(
+    CHARACTERISTIC_UUID,
+    READ | WRITE
+  );
+
+
+  // Start service
+  pService->start();
+
+  // Start advertising
+  pServer->getAdvertising()->start();
+  Serial.println("The device started, now you can pair it with Bluetooth!");
+}
+
+void loop() {
+  // Check if there's data available from BLE client
+  if (pCharacteristic->getValue().length() > 0) {
+    String message = pCharacteristic->getValue().c_str();
+    Serial.println(message);
+
+    // Check for commands and control the LED
+    if (message == "led_on") {
+      digitalWrite(ledPin, HIGH);
+    } else if (message == "led_off") {
+      digitalWrite(ledPin, LOW);
+    }
+
+    // Clear message after processing 
+    pCharacteristic->setValue("");  // Reset characteristic value
+  }
+
+  delay(20);  // Small delay to allow for responsiveness
+}
